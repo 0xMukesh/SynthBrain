@@ -9,13 +9,13 @@ class Generator(nn.Module):
         self,
         img_channels: int,
         latent_dim: int,
-        gen_base_features: int,
+        base_features: int,
         num_blocks: int,
         num_classes: int,
     ) -> None:
         super().__init__()
 
-        initial_layer_out_channels = gen_base_features * (2**num_blocks)
+        initial_layer_out_channels = base_features * (2**num_blocks)
 
         self.embed = nn.Embedding(num_classes, latent_dim)
         self.net = nn.Sequential(
@@ -27,10 +27,10 @@ class Generator(nn.Module):
                 padding=0,
             ),
             self._make_block_chain(
-                initial_layer_out_channels, gen_base_features, num_blocks
+                initial_layer_out_channels, base_features, num_blocks
             ),
             nn.ConvTranspose2d(
-                in_channels=gen_base_features,
+                in_channels=base_features,
                 out_channels=img_channels,
                 kernel_size=4,
                 stride=2,
@@ -113,7 +113,7 @@ class Critic(nn.Module):
                 kernel_size=4,
                 stride=2,
                 padding=1,
-                use_batchnorm=False,
+                use_layernorm=False,
             ),
             self._make_block_chain(base_features, num_blocks),
             nn.Conv2d(
@@ -142,15 +142,15 @@ class Critic(nn.Module):
         kernel_size: int,
         stride: int,
         padding: int,
-        use_batchnorm: bool = True,
+        use_layernorm: bool = True,
     ) -> nn.Sequential:
         layers = []
         layers.append(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
         )
 
-        if use_batchnorm:
-            layers.append(nn.BatchNorm2d(out_channels))
+        if use_layernorm:
+            layers.append(nn.LayerNorm(out_channels))
 
         layers.append(nn.LeakyReLU(self.alpha))
         return nn.Sequential(*layers)
@@ -169,7 +169,7 @@ class Critic(nn.Module):
                     kernel_size=4,
                     stride=2,
                     padding=1,
-                    use_batchnorm=True,
+                    use_layernorm=True,
                 )
             )
 
@@ -179,19 +179,26 @@ class Critic(nn.Module):
 
 
 def test():
+    img_size = 128
+    num_blocks = 4
+
     generator = Generator(
         img_channels=3,
         latent_dim=100,
-        gen_base_features=128,
-        num_blocks=3,
+        base_features=128,
+        num_blocks=num_blocks,
         num_classes=4,
     )
     critic = Critic(
-        img_channels=3, base_features=128, num_blocks=3, num_classes=4, img_size=64
+        img_channels=3,
+        base_features=128,
+        num_blocks=num_blocks,
+        num_classes=4,
+        img_size=img_size,
     )
 
     noise = torch.randn((1, 100, 1, 1))
-    image = torch.randn((1, 3, 64, 64))
+    image = torch.randn((1, 3, img_size, img_size))
     labels = torch.LongTensor([1])
 
     gen_output = generator(noise, labels)
