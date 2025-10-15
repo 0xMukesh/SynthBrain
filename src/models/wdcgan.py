@@ -198,15 +198,3 @@ class Critic(nn.Module):
             in_channels = in_channels * 2
 
         return nn.Sequential(*layers)
-
-
-def test():
-    noise = torch.randn(1, 100, 1, 1)
-    labels = torch.LongTensor([1])
-    generator = Generator(1, 100, 128, 4, 4, True)
-    fake = generator(noise, labels)
-    print(fake.shape)
-
-
-if __name__ == "__main__":
-    test()
