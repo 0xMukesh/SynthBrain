@@ -77,6 +77,7 @@ generator = Generator(
     base_features=config.base_features,
     num_blocks=config.num_blocks,
     num_classes=config.num_classes,
+    use_upsample=True,
 ).to(device)
 
 critic = Critic(

@@ -12,22 +12,25 @@ class Generator(nn.Module):
         base_features: int,
         num_blocks: int,
         num_classes: int,
+        use_upsample: bool,
     ) -> None:
         super().__init__()
 
-        initial_layer_out_channels = base_features * (2**num_blocks)
+        self.use_upsample = use_upsample
+        self.initial_layer_out_channels = base_features * (2**num_blocks)
 
         self.embed = nn.Embedding(num_classes, latent_dim)
         self.net = nn.Sequential(
             self._block(
                 latent_dim * 2,
-                initial_layer_out_channels,
+                self.initial_layer_out_channels,
                 kernel_size=4,
                 stride=1,
                 padding=0,
+                first_block=True,
             ),
             self._make_block_chain(
-                initial_layer_out_channels, base_features, num_blocks
+                self.initial_layer_out_channels, base_features, num_blocks
             ),
             nn.ConvTranspose2d(
                 in_channels=base_features,
@@ -55,14 +58,33 @@ class Generator(nn.Module):
         kernel_size: int,
         padding: int,
         stride: int,
+        upsample: bool = True,
+        first_block: bool = False,
     ) -> nn.Sequential:
-        return nn.Sequential(
-            nn.ConvTranspose2d(
-                in_channels, out_channels, kernel_size, stride, padding, bias=False
-            ),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True),
-        )
+        layers = []
+
+        if self.use_upsample and not first_block:
+            if upsample:
+                layers.append(
+                    nn.Upsample(scale_factor=2, mode="bilinear", align_corners=False)
+                )
+
+            layers.append(
+                nn.Conv2d(
+                    in_channels, out_channels, kernel_size, stride, padding, bias=False
+                ),
+            )
+        else:
+            layers.append(
+                nn.ConvTranspose2d(
+                    in_channels, out_channels, kernel_size, stride, padding, bias=False
+                )
+            )
+
+        layers.append(nn.BatchNorm2d(out_channels))
+        layers.append(nn.ReLU(inplace=True))
+
+        return nn.Sequential(*layers)
 
     def _make_block_chain(
         self, initial_channels: int, gen_base_features: int, num_blocks: int
@@ -74,7 +96,7 @@ class Generator(nn.Module):
             out_channels = gen_base_features * 2 ** (num_blocks - i - 1)
             layers.append(
                 self._block(
-                    in_channels, out_channels, kernel_size=4, padding=1, stride=2
+                    in_channels, out_channels, kernel_size=3, padding=1, stride=1
                 )
             )
             in_channels = out_channels
@@ -176,3 +198,15 @@ class Critic(nn.Module):
             in_channels = in_channels * 2
 
         return nn.Sequential(*layers)
+
+
+def test():
+    noise = torch.randn(1, 100, 1, 1)
+    labels = torch.LongTensor([1])
+    generator = Generator(1, 100, 128, 4, 4, True)
+    fake = generator(noise, labels)
+    print(fake.shape)
+
+
+if __name__ == "__main__":
+    test()
