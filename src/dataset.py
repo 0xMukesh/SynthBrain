@@ -2,7 +2,11 @@ from torch.utils.data import Dataset
 from PIL import Image
 import os
 
-from .constants import BRICS_CLASSES, BRICS_SHORT_CODE_MAPPING, BRICS_CLASS_IDX_MAPPING
+from src.constants import (
+    BRICS_CLASSES,
+    BRICS_SHORT_CODE_MAPPING,
+    BRICS_CLASS_IDX_MAPPING,
+)
 
 
 class BRISCDataset(Dataset):

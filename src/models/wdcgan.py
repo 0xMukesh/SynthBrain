@@ -113,7 +113,7 @@ class Critic(nn.Module):
                 kernel_size=4,
                 stride=2,
                 padding=1,
-                use_layernorm=False,
+                use_norm=False,
             ),
             self._make_block_chain(base_features, num_blocks),
             nn.Conv2d(
@@ -142,15 +142,15 @@ class Critic(nn.Module):
         kernel_size: int,
         stride: int,
         padding: int,
-        use_layernorm: bool = True,
+        use_norm: bool = True,
     ) -> nn.Sequential:
         layers = []
         layers.append(
             nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding)
         )
 
-        if use_layernorm:
-            layers.append(nn.LayerNorm(out_channels))
+        if use_norm:
+            layers.append(nn.InstanceNorm2d(out_channels, affine=True))
 
         layers.append(nn.LeakyReLU(self.alpha))
         return nn.Sequential(*layers)
@@ -169,44 +169,10 @@ class Critic(nn.Module):
                     kernel_size=4,
                     stride=2,
                     padding=1,
-                    use_layernorm=True,
+                    use_norm=True,
                 )
             )
 
             in_channels = in_channels * 2
 
         return nn.Sequential(*layers)
-
-
-def test():
-    img_size = 128
-    num_blocks = 4
-
-    generator = Generator(
-        img_channels=3,
-        latent_dim=100,
-        base_features=128,
-        num_blocks=num_blocks,
-        num_classes=4,
-    )
-    critic = Critic(
-        img_channels=3,
-        base_features=128,
-        num_blocks=num_blocks,
-        num_classes=4,
-        img_size=img_size,
-    )
-
-    noise = torch.randn((1, 100, 1, 1))
-    image = torch.randn((1, 3, img_size, img_size))
-    labels = torch.LongTensor([1])
-
-    gen_output = generator(noise, labels)
-    critic_fake_output = critic(gen_output, labels)
-    critic_real_output = critic(image, labels)
-
-    print(gen_output.shape, critic_fake_output.shape, critic_real_output.shape)
-
-
-if __name__ == "__main__":
-    test()
